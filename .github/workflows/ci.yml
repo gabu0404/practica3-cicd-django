@@ -1,4 +1,4 @@
-name: Django CI
+name: Django CI/CD Pipeline
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: 1. Integracion Continua (Tests)
     runs-on: ubuntu-latest
 
     services:
@@ -26,20 +27,20 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: 1. Descargar código del repositorio
+      - name: Descargar codigo del repositorio
         uses: actions/checkout@v4
 
-      - name: 2. Configurar Python 3.10
+      - name: Configurar Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: 3. Instalar dependencias
+      - name: Instalar dependencias
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 4. Ejecutar pruebas automatizadas (Tests)
+      - name: Ejecutar pruebas automatizadas (Tests)
         env:
           DB_NAME: test_db
           DB_USER: postgres
@@ -48,3 +49,27 @@ jobs:
           DB_PORT: 5432
         run: |
           python manage.py test
+
+  build-docker:
+    name: 2. Construccion Docker y Artefacto (CD)
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Descargar codigo del repositorio
+        uses: actions/checkout@v4
+
+      - name: Construir imagen Docker del proyecto
+        run: |
+          docker build -t django-app-cicd:latest .
+
+      - name: Exportar imagen Docker como archivo .tar
+        run: |
+          docker save django-app-cicd:latest -o django-app-image.tar
+
+      - name: Guardar artefacto Docker en GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-artifact
+          path: django-app-image.tar
+          retention-days: 5
